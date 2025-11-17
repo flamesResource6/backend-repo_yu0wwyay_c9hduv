@@ -1,8 +1,13 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Dict, Any
 
-app = FastAPI()
+from schemas import ContactMessage
+from database import create_document
+
+app = FastAPI(title="Portfolio Backend", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -63,6 +68,63 @@ def test_database():
     response["database_name"] = "✅ Set" if os.getenv("DATABASE_NAME") else "❌ Not Set"
     
     return response
+
+# ---------- Portfolio API ----------
+
+class ContactResponse(BaseModel):
+    status: str
+    id: str
+
+@app.post("/api/contact", response_model=ContactResponse)
+async def submit_contact(message: ContactMessage):
+    """Save contact form submission to MongoDB."""
+    try:
+        inserted_id = create_document("contactmessage", message)
+        return {"status": "ok", "id": inserted_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save message: {str(e)}")
+
+@app.get("/api/profile")
+def get_profile() -> Dict[str, Any]:
+    """Basic profile data to power the portfolio sections."""
+    return {
+        "name": "Your Name",
+        "title": "Backend Software Engineer",
+        "summary": "I craft resilient backend systems, scalable APIs, and data pipelines with a focus on performance, reliability, and developer experience.",
+        "location": "Remote / Global",
+        "skills": [
+            "Python", "FastAPI", "Django", "Node.js", "TypeScript", "PostgreSQL", "MongoDB", "Redis", "Kafka", "Docker", "Kubernetes", "AWS"
+        ],
+        "links": {
+            "github": "https://github.com/yourhandle",
+            "linkedin": "https://www.linkedin.com/in/yourhandle/",
+            "email": "you@example.com"
+        }
+    }
+
+@app.get("/api/projects")
+def list_projects():
+    """Sample projects to showcase on the frontend (static data)."""
+    return [
+        {
+            "name": "Realtime Analytics Pipeline",
+            "description": "Event ingestion service with Kafka, stream processing, and OLAP querying.",
+            "stack": ["Python", "FasAPI", "Kafka", "ClickHouse", "Docker"],
+            "url": "#"
+        },
+        {
+            "name": "Multi-tenant SaaS Platform",
+            "description": "Role-based auth, rate limits, and billing with Stripe across tenants.",
+            "stack": ["FastAPI", "PostgreSQL", "Redis", "AWS"],
+            "url": "#"
+        },
+        {
+            "name": "Feature Flags Service",
+            "description": "Low-latency flag evaluations with SDKs and audit trails.",
+            "stack": ["Go", "gRPC", "Redis", "Kubernetes"],
+            "url": "#"
+        }
+    ]
 
 
 if __name__ == "__main__":
